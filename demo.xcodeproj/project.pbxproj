@@ -286,6 +286,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.innosmart.demo.demo;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				TARGETED_DEVICE_FAMILY = "1,2";
+				VERSIONING_SYSTEM = "Apple Generic";
 			};
 			name = Debug;
 		};
@@ -301,6 +302,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.innosmart.demo.demo;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				TARGETED_DEVICE_FAMILY = "1,2";
+				VERSIONING_SYSTEM = "Apple Generic";
 			};
 			name = Release;
 		};
