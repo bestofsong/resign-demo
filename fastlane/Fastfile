@@ -6,7 +6,6 @@ default_platform :ios
 lane :get_package_name do
   version_str = get_version_number(xcodeproj: 'demo', target: 'demo').strip
   build_num = get_build_number().strip
-  js_version = (sh "sed -nE \"s/^[[:space:]]*export[[:space:]]*const[[:space:]]+version[[:space:]]*=[[:space:]]*\\'(.+)\\'[[:space:]]*;([[:space:]]*\\/\\/.*)?$/\\1/p\" ../../src/common/config.js").strip
   branch_name = (sh "git rev-parse  --abbrev-ref head").strip
   commit_id = (sh "git rev-parse head").strip
   datetime = (sh "TZ=Asia/Shanghai date '+%Y-%m-%d_%H_%M_%S_GMT+8'").strip
