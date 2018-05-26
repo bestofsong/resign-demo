@@ -1,0 +1,266 @@
+fastlane_version "2.26.1"
+
+
+default_platform :ios
+
+lane :get_package_name do
+  version_str = get_version_number(xcodeproj: 'demo', target: 'demo').strip
+  build_num = get_build_number().strip
+  js_version = (sh "sed -nE \"s/^[[:space:]]*export[[:space:]]*const[[:space:]]+version[[:space:]]*=[[:space:]]*\\'(.+)\\'[[:space:]]*;([[:space:]]*\\/\\/.*)?$/\\1/p\" ../../src/common/config.js").strip
+  branch_name = (sh "git rev-parse  --abbrev-ref head").strip
+  commit_id = (sh "git rev-parse head").strip
+  datetime = (sh "TZ=Asia/Shanghai date '+%Y-%m-%d_%H_%M_%S_GMT+8'").strip
+  "demo-#{version_str}-#{build_num}-#{branch_name}-#{commit_id}-#{datetime}"
+end
+
+platform :ios do
+  before_all do
+    # ENV["SLACK_URL"] = "https://hooks.slack.com/services/..."
+    # cocoapods
+  end
+
+
+  lane :test do
+    scan
+  end
+
+  lane :beta do
+    # match(type: "appstore") # more information: https://codesigning.guide
+    gym # Build your app - more options available
+    pilot
+    # sh "your_script.sh"
+    # You can also use other beta testing services here (run `fastlane actions`)
+  end
+
+  lane :release_version do
+    # match(type: "appstore")
+    # snapshot
+    wd = (sh "pwd").strip
+    metadata_path = "#{wd}/metadata"
+    screenshots_path = "#{wd}/screenshots"
+    deliver(
+      metadata_path: metadata_path,
+      screenshots_path: screenshots_path,
+      skip_binary_upload: true,
+      automatic_release: false
+    )
+    # frameit
+  end
+
+  lane :release do
+    # match(type: "appstore")
+    # snapshot
+    package(
+      export_method: 'app-store',
+      SS_API_ENV: 'prod',
+      NODE_ENV: 'production',
+      SS_PACKAGE_TYPE: 'app-store'
+    )
+
+    wd = (sh "pwd").strip
+    metadata_path = "#{wd}/metadata"
+    screenshots_path = "#{wd}/screenshots"
+
+    deliver(
+      force: true,
+      automatic_release: false,
+      metadata_path: metadata_path,
+      screenshots_path: screenshots_path,
+    )
+    # frameit
+  end
+
+  lane :ad_hoc do
+    # match(type: "appstore")
+    # snapshot
+    name = package(
+      export_method: 'ad-hoc',
+      SS_API_ENV: 'prod',
+      NODE_ENV: 'production',
+      SS_PACKAGE_TYPE: 'ad-hoc',
+      SS_COMMIT_ID: (sh "git rev-parse head").strip
+    )
+    # frameit
+  end
+
+  lane :ad_hoc_dev do
+    # match(type: "appstore")
+    # snapshot
+    name = package(
+      export_method: 'ad-hoc',
+      SS_API_ENV: 'dev',
+      NODE_ENV: 'production',
+      SS_PACKAGE_TYPE: 'ad-hoc',
+      SS_COMMIT_ID: (sh "git rev-parse head").strip
+    )
+    # frameit
+  end
+
+  lane :release_with_params do |options|
+    opts={
+      SS_COMMIT_ID: (sh "git rev-parse head").strip
+    }
+    options.each do |key, value|
+      opts[key] = value
+    end
+
+    name = package(**opts)
+    10.times do
+      addr=(sh "fir publish \"../#{name.sub('/', '_')}\" 2>/dev/null | sed -n -E 's;^.*s*Published succeed: ([^ ]+)\\s*.*$;\\1;p'").strip
+      next if addr.length <= 0
+      break
+    end
+    # frameit
+  end
+
+  lane :fir do
+    # match(type: "appstore")
+    # snapshot
+    name = package(
+      export_method: 'ad-hoc',
+      SS_API_ENV: 'prod',
+      NODE_ENV: 'production',
+      SS_PACKAGE_TYPE: 'ad-hoc',
+      SS_COMMIT_ID: (sh "git rev-parse head").strip
+    )
+    10.times do
+      addr=(sh "fir publish \"../#{name.sub('/', '_')}\" 2>/dev/null | sed -n -E 's;^.*s*Published succeed: ([^ ]+)\\s*.*$;\\1;p'").strip
+      next if addr.length <= 0
+      break
+    end
+    # frameit
+  end
+
+  lane :fir_sim do
+    # match(type: "appstore")
+    # snapshot
+    name = package(
+      export_method: 'ad-hoc',
+      SS_API_ENV: 'sim',
+      NODE_ENV: 'production',
+      SS_PACKAGE_TYPE: 'ad-hoc',
+      SS_COMMIT_ID: (sh "git rev-parse head").strip
+    )
+    10.times do
+      addr=(sh "fir publish \"../#{name.sub('/', '_')}\" 2>/dev/null | sed -n -E 's;^.*s*Published succeed: ([^ ]+)\\s*.*$;\\1;p'").strip
+      next if addr.length <= 0
+      break
+    end
+    # frameit
+  end
+
+  lane :fir_dev do
+    # match(type: "appstore")
+    # snapshot
+    name = package(
+      export_method: 'ad-hoc',
+      SS_API_ENV: 'dev',
+      NODE_ENV: 'production',
+      SS_PACKAGE_TYPE: 'ad-hoc',
+      SS_COMMIT_ID: (sh "git rev-parse head").strip
+    )
+    10.times do
+      addr=(sh "fir publish \"../#{name.sub('/', '_')}\" 2>/dev/null | sed -n -E 's;^.*s*Published succeed: ([^ ]+)\\s*.*$;\\1;p'").strip
+      next if addr.length <= 0
+      break
+    end
+    # frameit
+  end
+
+  lane :download_itc do |options|
+    sh "[ -d metadata ] &&  rm -rf metadata || echo"
+    sh "[ -d screenshots ] &&  rm -rf screenshots || echo"
+    version = (options && options[:version]) ? options[:version] : get_version_number(xcodeproj: 'demo', target: 'demo')
+    bid = get_bundle_id
+    sh "[ -d ./metadata ] && rm -rf ./metadata || echo"
+    sh "[ -d ./screenshots ] && rm -rf ./screenshots || echo"
+    sh "fastlane deliver download_metadata -f -a #{bid} -z #{version}"
+    sh "fastlane deliver download_screenshots -a #{bid} -z #{version}"
+  end
+
+  lane :bump_major do
+    increment_version_number_in_plist(
+      bump_type: 'major',
+      target: 'demo'
+    )
+  end
+
+  lane :bump_minor do
+    increment_version_number_in_plist(
+      bump_type: 'minor',
+      target: 'demo'
+    )
+  end
+
+  lane :bump_patch do
+    increment_version_number_in_plist(
+      bump_type: 'patch',
+      target: 'demo'
+    )
+  end
+
+  lane :bump_build do
+    increment_build_number
+  end
+
+
+  lane :package do |options|
+    name = "#{get_package_name}.ipa"
+
+    gym_opts = {
+      :scheme => 'demo',
+      :export_xcargs => "-allowProvisioningUpdates"
+    }
+
+    env_list = ''
+    options.each do |key, value|
+      if "#{key}" == "NODE_ENV" || "#{key}" == "GCC_PREPROCESSOR_DEFINITIONS" || "#{key}".start_with?("SS_")
+        env_list = "#{env_list} #{key}=#{value}"
+      else
+        gym_opts[key] = value
+      end
+    end
+
+    gym_opts[:xcargs] = "#{env_list} -allowProvisioningUpdates"
+    gym_opts[:output_name] = name
+
+    gym(**gym_opts)
+    name
+    # frameit
+  end
+
+  lane :get_bundle_id do
+    project = Xcodeproj::Project.open('../demo.xcodeproj')
+    scheme = project.native_targets.find { |target| target.name == 'demo' }
+    build_configuration = scheme.build_configurations.first
+    build_configuration.build_settings['PRODUCT_BUNDLE_IDENTIFIER']
+  end
+
+  lane :gen_icon do
+    # `appicon_image_file` defaults to "fastlane/metadata/app_icon.png"
+    #appicon_devices: [:ipad, :iphone, :ios_marketing],
+    appicon(
+        appicon_image_file: 'fastlane/metadata/app_icon.jpg',
+        appicon_devices: [:iphone],
+        appicon_path: 'generated_icons' # output path
+        )
+  end
+
+
+  # You can define as many lanes as you want
+
+  after_all do |lane|
+    # This block is called, only if the executed lane was successful
+
+    # slack(
+    #   message: "Successfully deployed new App Update."
+    # )
+  end
+
+  error do |lane, exception|
+    # slack(
+    #   message: exception.message,
+    #   success: false
+    # )
+  end
+end
