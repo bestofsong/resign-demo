@@ -47,7 +47,7 @@ platform :ios do
     # frameit
   end
 
-  lane :release do
+  lane :build_appstore do
     # match(type: "appstore")
     # snapshot
     package(
@@ -56,6 +56,10 @@ platform :ios do
       NODE_ENV: 'production',
       SS_PACKAGE_TYPE: 'app-store'
     )
+  end
+
+  lane :release do
+    build_appstore
 
     wd = (sh "pwd").strip
     metadata_path = "#{wd}/metadata"
