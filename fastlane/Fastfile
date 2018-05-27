@@ -58,7 +58,31 @@ platform :ios do
   end
 
   lane :release do
-    build_appstore
+    ipa_path=fir
+    puts("did fir with ipa: #{ipa_path}")
+    match(
+      readonly: true,
+      git_url: 'git@code.smartstudy.com:wansong/mobile-cert.git',
+      git_branch: '18518729823@163.com',
+      app_identifier: 'com.innosmart.demo',
+      type: 'appstore'
+    )
+    ENV.each do |k, v|
+      puts("#{k}: #{v}")
+    end
+    profile_path=ENV['sigh_com.innosmart.demo_appstore_profile-path']
+    puts("did match appstore with profile_path: #{profile_path}")
+    ipa_appstore="#{ipa_path}.appstore-resigned.ipa"
+    sh "cp \"../#{ipa_path}\" \"../#{ipa_appstore}\""
+    puts("did clone adhocipa to path: #{ipa_appstore}")
+    cert_name=(sh "security cms -Di \"#{profile_path}\" 2>/dev/null | xmlstarlet sel -t -v \"/plist/dict/key[text() = 'DeveloperCertificates']/following-sibling::*[1]/data[1]\" 2>/dev/null | base64 -d | openssl x509 -noout -inform DER -nameopt multiline,sname -subject | sed -n -E 's;^[[:space:]]*CN[[:space:]]*=[[:space:]]*(.+)[[:space:]]*$;\\1;p'").strip
+    puts("did extract cert_name from profile: #{cert_name}")
+    resign(
+      ipa: ipa_appstore,
+      provisioning_profile: profile_path,
+      signing_identity: cert_name
+    )
+    puts("did resign}")
 
     wd = (sh "pwd").strip
     metadata_path = "#{wd}/metadata"
@@ -69,13 +93,38 @@ platform :ios do
       automatic_release: false,
       metadata_path: metadata_path,
       screenshots_path: screenshots_path,
+      ipa: ipa_appstore
     )
-    # frameit
   end
 
   lane :ad_hoc do
     # match(type: "appstore")
     # snapshot
+    puts("===================================")
+    puts("ENV before: ")
+    ENV.each do |key, value|
+      puts("#{key}: #{value}")
+    end 
+    puts("===================================")
+
+
+    match_ret = match(
+      readonly: true,
+      git_url: 'git@code.smartstudy.com:wansong/mobile-cert.git',
+      git_branch: '18518729823@163.com',
+      app_identifier: 'com.innosmart.demo',
+      type: 'adhoc'
+    )
+
+    puts("===================================")
+    puts("match_ret: #{match_ret}")
+
+    puts("===================================")
+    puts("ENV after: ")
+    ENV.each do |key, value|
+      puts("#{key}: #{value}")
+    end 
+    puts("===================================")
     name = package(
       export_method: 'ad-hoc',
       SS_API_ENV: 'prod',
@@ -132,6 +181,7 @@ platform :ios do
       break
     end
     # frameit
+    name
   end
 
   lane :fir_sim do

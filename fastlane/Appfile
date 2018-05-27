@@ -1,5 +1,5 @@
-# app_identifier("[[APP_IDENTIFIER]]") # The bundle identifier of your app
-# apple_id("[[APPLE_ID]]") # Your Apple email address
+app_identifier("com.innosmart.demo") # The bundle identifier of your app
+apple_id("18518729823@163.com") # Your Apple email address
 
 
 # For more information about the Appfile, see:
