@@ -58,7 +58,9 @@ platform :ios do
   end
 
   lane :release do
-    ipa_path=fir
+    ipa_path=fir(
+      SS_PACKAGE_TYPE: 'appstore'
+    )
     puts("did fir with ipa: #{ipa_path}")
     bid = get_bundle_id
     match(
@@ -140,7 +142,7 @@ platform :ios do
     # frameit
   end
 
-  lane :fir do
+  lane :fir do |params|
     # match(type: "appstore")
     # snapshot
 
@@ -152,13 +154,17 @@ platform :ios do
       type: 'adhoc'
     )
 
-    name = package(
-      export_method: 'ad-hoc',
-      SS_API_ENV: 'prod',
-      NODE_ENV: 'production',
-      SS_PACKAGE_TYPE: 'ad-hoc',
-      SS_COMMIT_ID: (sh "git rev-parse head").strip
-    )
+    args = {
+      :export_method => 'ad-hoc',
+      :SS_API_ENV => 'prod',
+      :NODE_ENV => 'production',
+      :SS_PACKAGE_TYPE => 'ad-hoc',
+      :SS_COMMIT_ID => (sh "git rev-parse head").strip
+    }
+    params.each do |k, v|
+      args[k] = v
+    end
+    name = package(**args)
     10.times do
       addr=(sh "fir publish \"../#{name.sub('/', '_')}\" 2>/dev/null | sed -n -E 's;^.*s*Published succeed: ([^ ]+)\\s*.*$;\\1;p'").strip
       next if addr.length <= 0
